@@ -1,0 +1,370 @@
+---
+title: "ADA Final Project"
+author: "Yiwen Li"
+date: "4/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load packages and read in data
+```{r}
+
+library(haven)
+library(car)
+library(tidyverse)
+library(car)
+library(DescTools)
+library(lmtest) #for LR test
+#loading data
+NHMS <- read_dta("C:/Users/lywdo/Desktop/ADA Final Project/Dataset/23263-0001-Data.dta")
+View(NHMS)
+
+# show the first part of the data
+print(head(NHMS))
+
+
+```
+
+
+## Data management
+```{r}
+
+## Variables
+
+## Dependent Variable
+## SLEEPDISORDERNEW
+# check class of SLEEPDISORDERNEW
+class(NHMS$SLEEPDISORDERNEW)
+# change SLEEPDISORDERNEW to a factor
+NHMS$SLEEPDISORDERNEW <- as.factor(NHMS$SLEEPDISORDERNEW)
+# check the change
+class(NHMS$SLEEPDISORDERNEW)
+# recode our SLEEPDISORDERNEW variable
+NHMS$SLEEPDISORDERNEW <- car::recode(NHMS$SLEEPDISORDERNEW,
+                         "1 = 'Yes';
+                          0 = 'No';
+                         -2 = NA_character_;
+                         -1 = NA_character_")
+# relevel the variable
+NHMS$SLEEPDISORDERNEW <- relevel(NHMS$SLEEPDISORDERNEW, ref = "No")
+#check our work
+summary(NHMS$SLEEPDISORDERNEW)
+
+
+## Independent Variables
+## INSURE
+# check class of INSURE
+class(NHMS$INSURE)
+# change INSURE to a factor
+NHMS$INSURE <- as.factor(NHMS$INSURE)
+# check the change
+class(NHMS$INSURE)
+# recode our INSURE variable
+NHMS$INSURE <- car::recode(NHMS$INSURE,
+                         "1 = 'Yes';
+                          2 = 'No';
+                         -2 = NA_character_;
+                         -1 = NA_character_")
+# check our work
+summary(NHMS$INSURE)
+# relevel the variable
+NHMS$INSURE <- relevel(NHMS$INSURE, ref = "No")
+# check our work
+summary(NHMS$INSURE)
+
+
+## DIABETES
+# check class of DIABETES
+class(NHMS$DIABETES)
+# change DIABETES to a factor
+NHMS$DIABETES <- as.factor(NHMS$DIABETES)
+# check the change
+class(NHMS$DIABETES)
+# recode our DIABETES variable
+NHMS$DIABETES <- car::recode(NHMS$DIABETES,
+                         "1 = 'Yes';
+                          2 = 'No';
+                         -2 = NA_character_;
+                         -1 = NA_character_")
+# check our work
+summary(NHMS$DIABETES)
+# relevel the variable
+NHMS$DIABETES <- relevel(NHMS$DIABETES, ref = "No")
+# check our work
+summary(NHMS$DIABETES)
+
+
+## CHD
+# check class of CHD
+class(NHMS$CHD)
+# change CHD to a factor
+NHMS$CHD <- as.factor(NHMS$CHD)
+# check the change
+class(NHMS$CHD)
+# recode our CHD variable
+NHMS$CHD <- car::recode(NHMS$CHD,
+                         "1 = 'Yes';
+                          2 = 'No';
+                         -2 = NA_character_;
+                         -1 = NA_character_")
+# check our work
+summary(NHMS$CHD)
+# relevel the variable
+NHMS$CHD <- relevel(NHMS$CHD, ref = "No")
+# check our work
+summary(NHMS$CHD)
+
+
+## MCS12
+# check class of MCS12
+class(NHMS$MCS12)
+# look at the variable
+summary(NHMS$MCS12)
+
+
+
+## AGE
+# check class of AGE
+class(NHMS$AGE)
+# look at the variable
+summary(NHMS$AGE)
+
+
+## SEX
+# check class of SEX
+class(NHMS$SEX)
+# change SEX to a factor
+NHMS$SEX <- as.factor(NHMS$SEX)
+# check the change
+class(NHMS$SEX)
+# recode our SEX variable
+NHMS$SEX <- car::recode(NHMS$SEX,
+                         "1 = 'Male';
+                          2 = 'Female'")
+# check our work
+summary(NHMS$SEX)
+
+
+# create new data set by removing missing
+NHMS.nomiss <- drop_na(NHMS, SLEEPDISORDERNEW, INSURE, DIABETES, CHD, MCS12, AGE, SEX)
+
+
+```
+
+
+## Exploratory data analysis:examine distributions
+```{r}
+
+## Check the distribution of any continuous predictors
+## MCS12
+# examine the distribution of MCS12
+NHMS.nomiss %>%
+ggplot(aes(x = MCS12)) +
+geom_density(fill = "pink", alpha = .6) +
+theme_minimal() +
+labs(y = "Probability density", x = "Mental component score")
+
+## AGE
+# examine the distribution of AGE
+NHMS.nomiss %>%
+ggplot(aes(x = AGE)) +
+geom_density(fill = "skyblue", alpha = .5) +
+theme_minimal() +
+labs(y = "Probability density", x = "Age in years")
+
+
+```
+
+
+## Exploratory data analysis: make a table
+```{r}
+
+# open tableone
+library(package = "tableone")
+# create the table
+nonNormalVars <- c( "MCS12", "AGE")
+table.desc <- CreateTableOne(data = NHMS.nomiss,
+strata = 'SLEEPDISORDERNEW',
+vars = c("INSURE", "DIABETES", "CHD", "MCS12", "AGE", "SEX"))
+print(table.desc,
+nonnormal = nonNormalVars,
+showAllLevels = TRUE)
+
+
+```
+
+
+## Assumption checking
+```{r}
+
+## Based on the literature review, we will build two models
+## Reduced Model (SLEEPDISORDERNEW)
+# IV: DIABETES, MCS12, AGE, SEX
+## Full Model (SLEEPDISORDERNEW)
+# IV: DIABETES, MCS12, AGE, SEX, INSURE, CHD
+
+
+# predict SLEEPDISORDERNEW
+## Reduced Model
+Reduced_Model <- glm(SLEEPDISORDERNEW ~ DIABETES + MCS12 + AGE + SEX, data = NHMS.nomiss, family = "binomial")
+summary(Reduced_Model)
+
+
+## Full Model
+Full_Model <- glm(SLEEPDISORDERNEW ~ DIABETES + MCS12 + AGE + SEX + INSURE + CHD, data = NHMS.nomiss, family = "binomial")
+summary(Full_Model)
+
+
+## Assumption 1: No multicollinearity
+# compute GVIF for Reduced_Model
+vif(Reduced_Model)
+## The GVIF values are near 1, this assumption is met.
+
+# compute GVIF for Full_Model
+vif(Full_Model)
+## The GVIF values are near 1, this assumption is met.
+
+
+
+## Assumption 2: Linearity (Box Tidwell test)
+# Examines whether there is a linear relationship between any continuous predictors and the log odds of the predicted values
+# linearity of MCS12 
+MCS12.times.logMCS12 <- NHMS.nomiss$MCS12 * log(NHMS.nomiss$MCS12) # create term to test linearity
+boxTidwellMCS12 <- glm(SLEEPDISORDERNEW ~ MCS12 + MCS12.times.logMCS12, data=NHMS.nomiss, family="binomial") 
+#Box Ti
+summary(boxTidwellMCS12)
+## A non-significant estimate indicates no violation of linearity (this assumption is met).
+
+
+# linearity of AGE
+AGE.times.logAGE <- NHMS.nomiss$AGE * log(NHMS.nomiss$AGE) # create term to test linearity
+boxTidwellAGE <- glm(SLEEPDISORDERNEW ~ AGE + AGE.times.logAGE, data=NHMS.nomiss, family="binomial") 
+#Box Ti
+summary(boxTidwellAGE)
+# A significant coefficient means the assumption is violated.
+# Consider drop AGE from the full model.
+
+
+## Model that drop AGE
+Model_No_Age <- glm(SLEEPDISORDERNEW ~ DIABETES + MCS12 + SEX + INSURE + CHD, data = NHMS.nomiss, family = "binomial")
+summary(Model_No_Age)
+
+# compare Full_Model to Model_No_Age using LR test
+lrtest(Full_Model, Model_No_Age)
+## The significant result indicates that the Model_No_Age did a better job.
+## So we decide to use Model_No_Age for the following analysis.
+
+
+## Assumption 1 (supplement): 
+## No multicollinearity for *Model_No_Age*
+# compute GVIF 
+vif(Model_No_Age)
+## The GVIF values are near 1, this assumption is met.
+
+
+
+## Assumption 3: Check for influential data using Cook’s Distance
+# influence plot - Cook's D plot - identifies observation number in parent dataset
+plot(Model_No_Age, which=4, id.n=5, col="lightgreen", cex.id=0.60)
+
+# identify observations with a Cook's D greater than 0.008
+y<-as.data.frame(cooks.distance(Model_No_Age))
+colnames(y)[1]<-"CD"
+y$obs_no<-rownames(y)
+z<-y[which(y$CD>0.008),]
+z$obs_no
+
+
+
+```
+
+
+## Exclude influential observations and compare Betas
+```{r}
+
+# Let’s exclude the values shown in the Cook’s D plot, and see how the models compare
+
+# dropping obs with CD > 0.008
+Model_No_Age.modex <- update(Model_No_Age,subset=c(-98, -303, -1438, -1889, -2227, -2241, -2713, -2756, -3149, -3197, -3478, -3493, -3692, -3707))
+
+# compare coefficients between models with and without influential observations
+compareCoefs(Model_No_Age, Model_No_Age.modex)
+
+## Since we could find large differences between the two intercept values and two INSURE (slopes) values, we decide to remove the influential observations, and use *Model_No_Age.modex* for the following analysis.
+
+
+```
+
+
+## Run logistic models
+```{r}
+
+## We have already built a model
+summary(Model_No_Age.modex)
+
+# Use Dr. Harris' odds.n.ends package!
+# install.packages("odds.n.ends")
+library(odds.n.ends)
+odds.n.ends(Model_No_Age.modex)
+
+# Total predicted correctly
+(4+3439)/3782
+
+
+# load package
+library(package = "sjPlot")
+library(package = "sjmisc")
+library(package = "sjlabelled")
+# make table
+tab_model(Model_No_Age.modex)
+
+
+```
+
+
+## Model reporting
+```{r}
+
+## Interpreting the continuous predictor odds ratios
+# MCS12: There is a statistically significant relationship between mental component score and sleep disorder status. For every one-unit increase in mental component score, the odds of sleep disorder decrease by 0.05 or 5% (OR = 0.95; 95% CI: 0.94 – 0.96), holding all other variables constant. 
+
+## Interpreting the categorical predictor odds ratios
+# DIABETES [Yes]: Compared to those without diabetes, those with diabetes have 1.96 times the odds of sleep disorder (OR = 1.96; 95% CI: 1.51 – 2.52), holding all other variables constant. 
+# SEX [Male]: Compared to females, males have 1.38 times the odds of sleep disorder (OR = 1.38; 95% CI: 1.09 – 1.75), holding all other variables constant. 
+# INSURE [Yes]: Compared to those without medical insurance, those with medical insurance have 4.24 times the odds of sleep disorder (OR = 4.24; 95% CI: 2.18 – 9.54), holding all other variables constant. 
+# CHD [Yes]: Compared to those without coronary heart disease, those with coronary heart disease have 1.83 times the odds of sleep disorder (OR = 1.83; 95% CI: 1.36 – 2.43), holding all other variables constant. 
+
+
+## Model significance
+# The baseline is the percentage of sleep disorder, which is 0.089 or 8.9%.
+# Null and alternate hypotheses
+# H0: The model is no better than the baseline percentage at explaining sleep disorder
+# HA: The model is better than the baseline at explaining sleep disorder
+# The logistic regression model is statistically significantly better than the baseline at explaining sleep disorder (X^2(5) =  187.75; p < 0.05).
+
+
+## Model Fit - Better specificity
+# The model correctly predicted 91.04% of the time. It was better at predicting people without sleep disorder (99.85% correct) compared to people with sleep disorder (1.18% correct).
+
+
+### Altogether
+# A logistic regression model including mental component score, diabetes, sex, insurance status, and coronary heart disease as predictors of sleep disorder was statistically significantly better than the baseline at explaining sleep disorder (X^2(5) =  187.75; p < 0.05). 
+# The model correctly predicted 91.04% of observations including 99.85% of the people without sleep disorder and 1.18% of the people with sleep disorder.
+# Mental component score, diabetes, sex, insurance status, and coronary heart disease were statistically significantly related to sleep disorder. 
+# For every one-unit increase in mental component score, the odds of sleep disorder decrease by 0.05 or 5% (OR = 0.95; 95% CI: 0.94 – 0.96), holding all other variables constant. 
+# Compared to those without diabetes, those with diabetes have 1.96 times the odds of sleep disorder (OR = 1.96; 95% CI: 1.51 – 2.52), holding all other variables constant. 
+# Compared to females, males have 1.38 times the odds of sleep disorder (OR = 1.38; 95% CI: 1.09 – 1.75), holding all other variables constant. 
+# Compared to those without medical insurance, those with medical insurance have 4.24 times the odds of sleep disorder (OR = 4.24; 95% CI: 2.18 – 9.54), holding all other variables constant. 
+# Compared to those without coronary heart disease, those with coronary heart disease have 1.83 times the odds of sleep disorder (OR = 1.83; 95% CI: 1.36 – 2.43), holding all other variables constant. 
+# The assumptions of independent observations and no mulitcollinearity were met.
+## The linearity assumption of AGE variable indicates that it was violated.
+# There were 14 observations identified as outliers or influential values and they were removed from the later analysis.
+
+
+
+```
+
